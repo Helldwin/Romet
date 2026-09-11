@@ -1,5 +1,6 @@
 import { escapeHtml } from '../util/html.js'
 import { getRoom, getSelfId, getPlayers } from '../network/room.js'
+import { avatarHtmlOf } from '../util/avatar.js'
 
 let sendChat = null
 let receiveChat = null
@@ -33,13 +34,19 @@ export function destroyChat() {
 
 function buildDom() {
   container = document.createElement('div')
-  container.className = 'chat-widget'
+  container.className = 'chat-dock'
   container.innerHTML = `
-    <button type="button" class="chat-toggle" id="chat-toggle" aria-label="Ouvrir le chat">
-      💬<span class="chat-badge" id="chat-badge" hidden></span>
+    <button type="button" class="chat-tab" id="chat-toggle" aria-label="Ouvrir le chat">
+      <span class="chat-tab-icon">💬</span>
+      <span class="chat-tab-label">Chat</span>
+      <span class="chat-badge" id="chat-badge" hidden></span>
     </button>
+    <div class="chat-scrim" id="chat-scrim" hidden></div>
     <div class="chat-panel" id="chat-panel" hidden>
-      <div class="chat-header">Chat</div>
+      <div class="chat-header">
+        <span>💬 Chat de la soirée</span>
+        <button type="button" class="chat-close" id="chat-close" aria-label="Fermer le chat">✕</button>
+      </div>
       <ul class="chat-messages" id="chat-messages"></ul>
       <form class="chat-form" id="chat-form">
         <input id="chat-input" type="text" maxlength="200" placeholder="Écris un message..." autocomplete="off" />
@@ -53,6 +60,8 @@ function buildDom() {
   badgeEl = container.querySelector('#chat-badge')
 
   container.querySelector('#chat-toggle').addEventListener('click', toggle)
+  container.querySelector('#chat-close').addEventListener('click', toggle)
+  container.querySelector('#chat-scrim').addEventListener('click', toggle)
   container.querySelector('#chat-form').addEventListener('submit', (e) => {
     e.preventDefault()
     const input = container.querySelector('#chat-input')
@@ -67,6 +76,8 @@ function buildDom() {
 function toggle() {
   open = !open
   panelEl.hidden = !open
+  container.querySelector('#chat-scrim').hidden = !open
+  container.classList.toggle('chat-dock-open', open)
   if (open) {
     unreadCount = 0
     updateBadge()
@@ -76,9 +87,19 @@ function toggle() {
 
 function appendMessage(peerId, text) {
   if (!listEl) return
-  const nickname = getPlayers().find((p) => p.peerId === peerId)?.nickname ?? '???'
+  const player = getPlayers().find((p) => p.peerId === peerId)
+  const nickname = player?.nickname ?? '???'
+  const { emoji, color } = avatarHtmlOf(player?.avatar)
+  const isSelf = peerId === getSelfId()
   const li = document.createElement('li')
-  li.innerHTML = `<strong>${escapeHtml(nickname)}</strong> ${escapeHtml(text)}`
+  li.className = `chat-line${isSelf ? ' is-self' : ''}`
+  li.innerHTML = `
+    <span class="avatar chat-line-avatar" style="background:${color}">${escapeHtml(emoji)}</span>
+    <span class="chat-line-body">
+      <span class="chat-line-name">${escapeHtml(nickname)}</span>
+      <span class="chat-line-text">${escapeHtml(text)}</span>
+    </span>
+  `
   listEl.appendChild(li)
   listEl.scrollTop = listEl.scrollHeight
 

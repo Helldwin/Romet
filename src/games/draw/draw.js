@@ -1,8 +1,10 @@
 import { escapeHtml } from '../../util/html.js'
 import { normalizeGuess } from '../../util/text.js'
-import { fetchGameContent } from '../../network/content.js'
+import { fetchGameContentRetrying } from '../../network/content.js'
+import { shuffle } from '../../util/shuffle.js'
 import { playDing } from '../../util/sound.js'
 import { levenshtein } from '../../util/levenshtein.js'
+import { avatarHtmlOf } from '../../util/avatar.js'
 
 const CHOOSE_DURATION_MS = 8000
 const BASE_TURN_DURATION_MS = 45000
@@ -30,11 +32,27 @@ function buildHint(word, revealed) {
     .join(' ')
 }
 
-async function fetchWords(count) {
-  const data = await fetchGameContent('draw', count)
-  const words = data.map((item) => item?.word).filter((word) => typeof word === 'string' && word.trim())
-  if (words.length === 0) throw new Error('empty')
-  return words
+async function fetchWords(count, excludeWords, customItems = []) {
+  const overfetch = Math.max(count * 3, count + 15)
+  let data
+  try {
+    data = await fetchGameContentRetrying('draw', overfetch)
+  } catch (err) {
+    if (customItems.length === 0) throw err
+    data = []
+  }
+  data = [...customItems, ...data]
+
+  const seen = new Set()
+  const valid = data
+    .map((item) => item?.word)
+    .filter((word) => typeof word === 'string' && word.trim() && !seen.has(word) && seen.add(word))
+  if (valid.length === 0) throw new Error('empty')
+
+  const fresh = valid.filter((word) => !excludeWords.has(word))
+  const pool = fresh.length > 0 ? fresh : valid
+
+  return shuffle(pool).slice(0, count)
 }
 
 export default {
@@ -58,6 +76,7 @@ export default {
     // état hôte uniquement
     let turnOrder = []
     let wordPool = []
+    let effectiveTurns = ctx.turnsPerGame
     let scores = new Map()
     let currentDrawerId = null
     let currentWord = null
@@ -87,6 +106,9 @@ export default {
     let isEraser = false
     let strokeHistory = [] // [{ color, segments: [{x0,y0,x1,y1}] }]
     let likedThisTurn = false
+    let scoresLocal = new Map(ctx.getPlayers().map((p) => [p.peerId, 0]))
+    let foundPeerIdsLocal = new Set()
+    let sidebarEl = null
 
     const nicknameOf = (peerId) => ctx.getPlayers().find((p) => p.peerId === peerId)?.nickname ?? '???'
     const hostPeerId = () => ctx.getPlayers().find((p) => p.isHost)?.peerId
@@ -175,11 +197,36 @@ export default {
       timerEl.textContent = `${remaining}s`
     }
 
+    function renderSidebarHtml() {
+      const players = [...ctx.getPlayers()].sort((a, b) => (scoresLocal.get(b.peerId) ?? 0) - (scoresLocal.get(a.peerId) ?? 0))
+      return players
+        .map((p) => {
+          const isDrawer = p.peerId === currentDrawerId
+          const found = foundPeerIdsLocal.has(p.peerId)
+          const statusIcon = isDrawer ? '✏️' : found ? '✅' : ''
+          const { emoji, color } = avatarHtmlOf(p.avatar)
+          return `
+            <li class="draw-player${isDrawer ? ' is-drawer' : ''}${found ? ' has-found' : ''}${p.peerId === ctx.selfId ? ' is-me' : ''}">
+              <span class="avatar draw-player-avatar" style="background:${color}">${escapeHtml(emoji)}</span>
+              <span class="draw-player-name">${escapeHtml(p.nickname)}</span>
+              <span class="draw-player-status">${statusIcon}</span>
+              <span class="draw-player-score">${scoresLocal.get(p.peerId) ?? 0}</span>
+            </li>
+          `
+        })
+        .join('')
+    }
+
+    function updateSidebar() {
+      if (sidebarEl) sidebarEl.innerHTML = renderSidebarHtml()
+    }
+
     function buildShell({ role, wordDisplay }) {
       clearInterval(tickHandle)
       window.removeEventListener('pointerup', onPointerUp)
       strokeHistory = []
       likedThisTurn = false
+      foundPeerIdsLocal = new Set()
 
       const headerText =
         role === 'drawer'
@@ -190,22 +237,30 @@ export default {
 
       ctx.root.innerHTML = `
         <main class="screen draw-screen">
-          <div class="draw-header">
-            <h1 id="draw-heading">${headerText}</h1>
-            <span id="draw-timer" class="muted"></span>
+          <p class="muted draw-round-label">Manche ${turnRound + 1} / ${effectiveTurns}</p>
+          <div class="draw-layout">
+            <aside class="draw-sidebar">
+              <ul id="draw-sidebar-list" class="draw-sidebar-list">${renderSidebarHtml()}</ul>
+            </aside>
+            <div class="draw-main">
+              <div class="draw-header">
+                <h1 id="draw-heading">${headerText}</h1>
+                <span id="draw-timer" class="timer-pill muted"></span>
+              </div>
+              ${
+                role === 'drawer'
+                  ? `<div class="draw-tools">
+                      ${COLORS.map((c, idx) => `<button type="button" class="color-swatch${idx === 0 ? ' active' : ''}" data-color="${c}" style="background:${c}"></button>`).join('')}
+                      <button type="button" id="eraser-btn" class="color-swatch eraser">🧽</button>
+                      <button type="button" id="undo-btn" class="btn-secondary">↩️ Annuler</button>
+                    </div>`
+                  : ''
+              }
+              <canvas id="draw-canvas" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
+              <ul id="draw-chat" class="draw-chat"></ul>
+              ${role === 'guesser' ? '<form id="draw-guess-form"><input id="draw-guess-input" type="text" placeholder="Ta réponse..." maxlength="40" autocomplete="off" /><button type="submit">➤</button></form>' : ''}
+            </div>
           </div>
-          ${
-            role === 'drawer'
-              ? `<div class="draw-tools">
-                  ${COLORS.map((c) => `<button type="button" class="color-swatch" data-color="${c}" style="background:${c}"></button>`).join('')}
-                  <button type="button" id="eraser-btn" class="color-swatch eraser">🧽</button>
-                  <button type="button" id="undo-btn" class="btn-secondary">↩️ Annuler</button>
-                </div>`
-              : ''
-          }
-          <canvas id="draw-canvas" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
-          <ul id="draw-chat" class="draw-chat"></ul>
-          ${role === 'guesser' ? '<form id="draw-guess-form"><input id="draw-guess-input" type="text" placeholder="Ta réponse..." maxlength="40" autocomplete="off" /><button type="submit">Envoyer</button></form>' : ''}
         </main>
       `
 
@@ -213,6 +268,7 @@ export default {
       canvasCtx = canvasEl.getContext('2d')
       chatListEl = ctx.root.querySelector('#draw-chat')
       timerEl = ctx.root.querySelector('#draw-timer')
+      sidebarEl = ctx.root.querySelector('#draw-sidebar-list')
 
       if (role === 'drawer') {
         canvasEl.addEventListener('pointerdown', onPointerDown)
@@ -222,10 +278,12 @@ export default {
           btn.addEventListener('click', () => {
             currentColor = btn.dataset.color
             isEraser = false
+            ctx.root.querySelectorAll('.color-swatch').forEach((b) => b.classList.toggle('active', b === btn))
           })
         })
-        ctx.root.querySelector('#eraser-btn').addEventListener('click', () => {
+        ctx.root.querySelector('#eraser-btn').addEventListener('click', (e) => {
           isEraser = true
+          ctx.root.querySelectorAll('.color-swatch').forEach((b) => b.classList.toggle('active', b === e.currentTarget))
         })
         ctx.root.querySelector('#undo-btn').addEventListener('click', onUndo)
       }
@@ -250,14 +308,18 @@ export default {
       clearInterval(tickHandle)
       ctx.root.innerHTML = `
         <main class="screen">
+          <p class="muted draw-round-label">Manche ${turnRound + 1} / ${effectiveTurns}</p>
           <h1>Choisis un mot à dessiner 🎨</h1>
-          <div class="vote-grid">
+          <div class="timer-bar"><div class="timer-bar-fill" id="choose-timer-fill"></div></div>
+          <div class="vote-grid word-pick-grid">
             ${options.map((w) => `<button type="button" class="vote-card word-pick" data-word="${escapeHtml(w)}"><h2>${escapeHtml(w)}</h2></button>`).join('')}
           </div>
         </main>
       `
       ctx.root.querySelectorAll('.word-pick').forEach((btn) => {
         btn.addEventListener('click', () => {
+          ctx.root.querySelectorAll('.word-pick').forEach((b) => (b.disabled = true))
+          btn.classList.add('selected')
           if (ctx.isHost) {
             startTurn(turnRound, btn.dataset.word)
           } else {
@@ -265,11 +327,32 @@ export default {
           }
         })
       })
+      startChooseTicking(ctx.root.querySelector('#choose-timer-fill'), Date.now() + CHOOSE_DURATION_MS)
     }
 
     function renderWaitingChoice(drawerNickname) {
       clearInterval(tickHandle)
-      ctx.root.innerHTML = `<main class="screen"><h1>🎨 ${escapeHtml(drawerNickname)} choisit un mot…</h1></main>`
+      ctx.root.innerHTML = `
+        <main class="screen">
+          <p class="muted draw-round-label">Manche ${turnRound + 1} / ${effectiveTurns}</p>
+          <h1>🎨 ${escapeHtml(drawerNickname)} choisit un mot…</h1>
+          <div class="timer-bar"><div class="timer-bar-fill" id="choose-timer-fill"></div></div>
+        </main>
+      `
+      startChooseTicking(ctx.root.querySelector('#choose-timer-fill'), Date.now() + CHOOSE_DURATION_MS)
+    }
+
+    function startChooseTicking(fill, deadlineAt) {
+      clearInterval(tickHandle)
+      if (!fill) return
+      const total = CHOOSE_DURATION_MS
+      const tick = () => {
+        const remaining = Math.max(0, deadlineAt - Date.now())
+        fill.style.width = `${Math.max(0, Math.min(100, (remaining / total) * 100))}%`
+        if (remaining <= 0) clearInterval(tickHandle)
+      }
+      tick()
+      tickHandle = setInterval(tick, 100)
     }
 
     function enterTurnLocally(data) {
@@ -325,6 +408,8 @@ export default {
 
     function onCorrectMarked(peerId) {
       appendChatLine(`${nicknameOf(peerId)} a trouvé le mot !`, 'found-line')
+      foundPeerIdsLocal.add(peerId)
+      updateSidebar()
       if (peerId === ctx.selfId && myRole === 'guesser') {
         myRole = 'found'
         playDing()
@@ -360,8 +445,9 @@ export default {
 
     function startChoosing(i) {
       const drawerId = turnOrder[i % turnOrder.length]
-      const options = []
-      for (let k = 0; k < 3 && wordPool.length > 0; k++) options.push(wordPool[(i + k) % wordPool.length])
+      // Retire définitivement les mots proposés de la pool (choisis ou non) pour
+      // qu'aucun mot ne soit jamais reproposé dans la même partie de dessin.
+      const options = wordPool.splice(0, Math.min(3, wordPool.length))
       currentDrawerId = drawerId
       turnRound = i
       wordChosenForRound = -1
@@ -369,9 +455,9 @@ export default {
       if (drawerId === ctx.selfId) {
         renderChoosing(options)
       } else {
-        sendTurn({ round: i, phase: 'choosing', drawerId, options }, drawerId)
+        sendTurn({ round: i, phase: 'choosing', drawerId, options, effectiveTurns }, drawerId)
         const others = ctx.getPlayers().map((p) => p.peerId).filter((id) => id !== drawerId && id !== ctx.selfId)
-        if (others.length) sendTurn({ round: i, phase: 'waiting', drawerId, drawerNickname: nicknameOf(drawerId) }, others)
+        if (others.length) sendTurn({ round: i, phase: 'waiting', drawerId, drawerNickname: nicknameOf(drawerId), effectiveTurns }, others)
         renderWaitingChoice(nicknameOf(drawerId))
       }
 
@@ -397,8 +483,8 @@ export default {
 
       const hint = buildHint(word, revealedIndices)
       const others = ctx.getPlayers().map((p) => p.peerId).filter((id) => id !== drawerId)
-      if (drawerId !== ctx.selfId) sendTurn({ round: i, phase: 'drawing', drawerId, word, hint, deadline: turnDeadline }, drawerId)
-      if (others.length) sendTurn({ round: i, phase: 'drawing', drawerId, hint, deadline: turnDeadline }, others)
+      if (drawerId !== ctx.selfId) sendTurn({ round: i, phase: 'drawing', drawerId, word, hint, deadline: turnDeadline, effectiveTurns }, drawerId)
+      if (others.length) sendTurn({ round: i, phase: 'drawing', drawerId, hint, deadline: turnDeadline, effectiveTurns }, others)
 
       enterTurnLocally({ round: i, drawerId, word, hint, deadline: turnDeadline })
       timeoutHandle = setTimeout(() => endTurn(i), turnDuration)
@@ -427,14 +513,25 @@ export default {
         scores.set(currentDrawerId, (scores.get(currentDrawerId) ?? 0) + foundOrder.length)
       }
       const scoreList = [...scores.entries()].map(([peerId, points]) => ({ peerId, points }))
+      scoresLocal = new Map(scoreList.map((s) => [s.peerId, s.points]))
       const payload = { round: i, word: currentWord, drawerId: currentDrawerId, scores: scoreList, bestDrawing }
+      // Capture du canvas de l'hôte (miroir fidèle du dessin, qu'il soit lui-même le dessinateur
+      // ou juste un spectateur qui a reçu tous les traits) pour le récap de fin de soirée.
+      ctx.onRoundRecap?.({
+        type: 'draw',
+        prompt: currentWord,
+        answer: currentWord,
+        imageUrl: canvasEl?.toDataURL('image/jpeg', 0.6),
+        drawerNickname: nicknameOf(currentDrawerId),
+        strokes: strokeHistory,
+      })
       sendEnd(payload)
       enterRevealLocally(payload)
       timeoutHandle = setTimeout(() => advanceTurn(i + 1), REVEAL_DURATION_MS)
     }
 
     function advanceTurn(i) {
-      if (i >= ctx.turnsPerGame) {
+      if (i >= effectiveTurns) {
         const rankings = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([peerId]) => peerId)
         ctx.onGameEnd(rankings)
         return
@@ -444,6 +541,7 @@ export default {
 
     receiveTurn((data) => {
       if (ctx.isHost) return
+      if (data.effectiveTurns) effectiveTurns = data.effectiveTurns
       if (data.phase === 'choosing') {
         turnRound = data.round
         currentDrawerId = data.drawerId
@@ -493,6 +591,7 @@ export default {
 
     receiveEnd((data) => {
       if (ctx.isHost) return
+      scoresLocal = new Map(data.scores.map((s) => [s.peerId, s.points]))
       enterRevealLocally(data)
     })
 
@@ -506,9 +605,13 @@ export default {
       turnOrder = ctx.getPlayers().map((p) => p.peerId)
       scores = new Map(turnOrder.map((id) => [id, 0]))
       ctx.root.innerHTML = '<main class="screen"><h1>Chargement des mots…</h1></main>'
-      fetchWords(Math.max(ctx.turnsPerGame * 3, 6))
+      fetchWords(Math.max(ctx.turnsPerGame * 3, 6), new Set(ctx.getUsedKeys?.() ?? []), ctx.customContent ?? [])
         .then((words) => {
           wordPool = words
+          ctx.markUsedKeys?.(words)
+          // La pool peut être plus petite que prévu (peu de contenu frais dispo) :
+          // on ajuste discrètement le nombre de tours plutôt que de planter en cours de partie.
+          effectiveTurns = Math.max(1, Math.min(ctx.turnsPerGame, Math.floor(wordPool.length / 3)))
           startChoosing(0)
         })
         .catch(() => {

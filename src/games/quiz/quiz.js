@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../util/html.js'
-import { fetchGameContent } from '../../network/content.js'
+import { fetchGameContentRetrying } from '../../network/content.js'
+import { shuffle } from '../../util/shuffle.js'
 import { playDing, playWrong, playTick } from '../../util/sound.js'
 
 const DEFAULT_QUESTION_DURATION_MS = 10000
@@ -8,12 +9,35 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 const STREAK_BONUS_AT = 3
 const STEAL_POINTS = 2
 
-async function fetchQuestions(count, difficulty) {
+async function fetchQuestions(count, difficulty, excludeTexts, customItems = []) {
   const extra = difficulty && difficulty !== 'random' ? { difficulty } : {}
-  const data = await fetchGameContent('quiz', count, extra)
-  const items = data.filter((q) => q && q.text && Array.isArray(q.choices) && q.choices.includes(q.answer))
-  if (items.length === 0) throw new Error('empty')
-  return items.slice(0, count)
+  const overfetch = Math.max(count * 3, count + 10)
+  let data
+  try {
+    data = await fetchGameContentRetrying('quiz', overfetch, extra)
+  } catch (err) {
+    if (customItems.length === 0) throw err
+    data = []
+  }
+  data = [...customItems, ...data]
+
+  const seen = new Set()
+  const valid = data.filter((q) => {
+    if (!q || !q.text || !Array.isArray(q.choices) || !q.choices.includes(q.answer)) return false
+    if (seen.has(q.text)) return false
+    seen.add(q.text)
+    return true
+  })
+  if (valid.length === 0) throw new Error('empty')
+
+  // Priorité aux questions pas encore posées cette soirée ; si le pool frais
+  // ne suffit pas, on complète avec des questions déjà vues plutôt que d'échouer.
+  const fresh = valid.filter((q) => !excludeTexts.has(q.text))
+  const pool = fresh.length > 0 ? fresh : valid
+
+  return shuffle(pool)
+    .slice(0, count)
+    .map((q) => ({ ...q, choices: shuffle(q.choices) }))
 }
 
 function render(root, state, players, handlers) {
@@ -150,6 +174,7 @@ export default {
     let eliminated = new Set()
     let fastest = null // { peerId, nickname, elapsedMs }
     let roundIndex = -1
+    let currentTotal = 0
     let currentQuestion = null
     let questionStartedAt = 0
     let questionDeadline = 0
@@ -171,7 +196,7 @@ export default {
       renderState({
         phase: 'question',
         i: roundIndex,
-        total: questions.length,
+        total: currentTotal,
         text: currentQuestion.text,
         image: currentQuestion.image,
         choices: currentQuestion.choices,
@@ -187,7 +212,7 @@ export default {
       renderState({
         phase: 'question',
         i: roundIndex,
-        total: questions.length,
+        total: currentTotal,
         text: currentQuestion.text,
         image: currentQuestion.image,
         choices: currentQuestion.choices,
@@ -221,6 +246,7 @@ export default {
     receiveQuestion((data) => {
       if (ctx.isHost) return
       roundIndex = data.i
+      currentTotal = data.total
       currentQuestion = { text: data.text, choices: data.choices, image: data.image }
       localAnswer = null
       answeredCount = 0
@@ -268,6 +294,7 @@ export default {
       }
 
       const q = questions[i]
+      currentTotal = questions.length
       currentQuestion = { text: q.text, choices: q.choices, image: q.image }
       localAnswer = null
       answersThisRound = new Map()
@@ -275,7 +302,7 @@ export default {
       questionStartedAt = Date.now()
       questionDeadline = questionStartedAt + questionDuration
 
-      const payload = { i, total: questions.length, text: q.text, image: q.image, choices: q.choices, deadline: questionDeadline, eliminatedIds: [...eliminated] }
+      const payload = { i, total: currentTotal, text: q.text, image: q.image, choices: q.choices, deadline: questionDeadline, eliminatedIds: [...eliminated] }
       sendQuestion(payload)
       renderState({ phase: 'question', ...payload, answered: null, answeredCount: 0 })
 
@@ -286,6 +313,8 @@ export default {
       const q = questions[i]
       const correctIndex = q.choices.indexOf(q.answer)
       const distribution = q.choices.map(() => 0)
+      ctx.onRoundRecap?.({ type: 'quiz', prompt: q.text, choices: q.choices, answer: q.answer })
+      ctx.onResponseTimes?.([...answersThisRound].map(([peerId, entry]) => ({ peerId, elapsedMs: entry.at - questionStartedAt })))
       const correctEntries = []
       if (localAnswer !== null) ctx.onAnswerResult?.(localAnswer === correctIndex)
 
@@ -348,9 +377,10 @@ export default {
 
     if (ctx.isHost) {
       renderState({ phase: 'loading' })
-      fetchQuestions(ctx.turnsPerGame, ctx.difficulty)
+      fetchQuestions(ctx.turnsPerGame, ctx.difficulty, new Set(ctx.getUsedKeys?.() ?? []), ctx.customContent ?? [])
         .then((data) => {
           questions = data
+          ctx.markUsedKeys?.(data.map((q) => q.text))
           scores = new Map(ctx.getPlayers().map((p) => [p.peerId, 0]))
           startRound(0)
         })

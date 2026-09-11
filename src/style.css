@@ -149,17 +149,21 @@ h3 {
 }
 
 .screen {
+  position: relative;
   width: 100%;
-  max-width: 440px;
+  max-width: min(640px, 94vw);
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
   animation: pop-in 0.3s ease;
 }
 
-.screen.draw-screen,
 .screen.wide {
-  max-width: 580px;
+  max-width: min(780px, 95vw);
+}
+
+.screen.draw-screen {
+  max-width: min(1080px, 96vw);
 }
 
 @keyframes pop-in {
@@ -218,6 +222,7 @@ h2 {
 .room-code,
 .leaderboard-widget,
 .chat-panel,
+.chat-tab,
 .players li,
 .podium li,
 .leaderboard li,
@@ -634,7 +639,14 @@ button.leave:hover {
   flex-direction: column-reverse;
   gap: 1rem;
   width: 100%;
-  max-width: 580px;
+  max-width: min(1100px, 96vw);
+}
+
+.party-game-wrap > .leaderboard-widget,
+.party-game-wrap > .reaction-bar {
+  width: 100%;
+  max-width: min(780px, 95vw);
+  align-self: center;
 }
 
 .leaderboard-widget {
@@ -776,7 +788,249 @@ button.leave:hover {
   border: 1px solid var(--surface-border);
 }
 
-/* --- Dessine c'est deviner --- */
+/* --- Devine l'image (pochette façon gamedle.wtf) --- */
+
+.guess-cover {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(var(--shadow-c), 0.4);
+}
+
+.guess-cover-badges {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  z-index: 2;
+}
+
+.guess-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(10, 12, 22, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.guess-pill-genre {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+}
+
+.guess-pill-year {
+  background: rgba(10, 12, 22, 0.65);
+}
+
+.guess-cover-reveal {
+  display: flex;
+  flex-direction: column;
+}
+
+.guess-cover-reveal .guess-image {
+  border-radius: 0;
+  border: none;
+}
+
+.guess-reveal-caption {
+  position: relative;
+  padding: 0.9rem 1rem 1rem;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 40%, rgba(0, 0, 0, 0.75));
+  margin-top: -4.5rem;
+}
+
+.guess-reveal-caption h1 {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: none;
+  filter: none;
+  text-align: left;
+  margin-bottom: 0.4rem;
+  font-size: 1.3rem;
+}
+
+.guess-reveal-caption .guess-cover-badges {
+  position: static;
+}
+
+.guess-answer-wrap {
+  position: relative;
+}
+
+.guess-suggestions {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: var(--surface-strong);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 12px 32px rgba(var(--shadow-c), 0.4);
+}
+
+.guess-suggestion-item {
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.guess-suggestion-item:hover,
+.guess-suggestion-item:active {
+  background: var(--surface-soft);
+  color: var(--accent);
+}
+
+.guess-answer-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.3rem 0.3rem 1rem;
+}
+
+.guess-answer-form input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.guess-answer-form input:focus {
+  outline: none;
+}
+
+.guess-answer-form button {
+  border-radius: 999px;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.guess-form-icon {
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.guess-sent-chip {
+  margin: 0;
+  text-align: center;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: var(--success-glass);
+  color: var(--success);
+  font-weight: 700;
+}
+
+/* --- Dessine c'est deviner (mise en page façon skribbl.io) --- */
+
+.draw-round-label {
+  text-align: center;
+  margin: 0;
+}
+
+.draw-layout {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.draw-sidebar {
+  background: var(--surface);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  padding: 0.5rem;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.draw-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.draw-player {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  background: var(--surface-soft);
+  border: 1px solid transparent;
+}
+
+.draw-player.is-drawer {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--glow-1);
+}
+
+.draw-player.has-found {
+  background: var(--success-glass);
+}
+
+.draw-player.is-me .draw-player-name {
+  text-decoration: underline;
+}
+
+.draw-player-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  font-size: 0.75rem;
+}
+
+.draw-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.draw-player-status {
+  font-size: 0.85rem;
+}
+
+.draw-player-score {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+
+.draw-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+}
 
 .draw-header {
   display: flex;
@@ -787,8 +1041,16 @@ button.leave:hover {
 
 .draw-header h1 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   text-align: left;
+}
+
+.draw-header .timer-pill {
+  flex-shrink: 0;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
 #draw-canvas {
@@ -830,10 +1092,58 @@ button.leave:hover {
 #draw-guess-form {
   display: flex;
   gap: 0.5rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.3rem 0.3rem 1rem;
 }
 
 #draw-guess-form input {
   flex: 1;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#draw-guess-form input:focus {
+  outline: none;
+}
+
+#draw-guess-form button {
+  border-radius: 999px;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.word-pick-grid .word-pick.selected {
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .draw-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-sidebar {
+    max-height: 120px;
+  }
+
+  .draw-sidebar-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .draw-player {
+    grid-template-columns: auto auto auto;
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+
+  .draw-player-name {
+    max-width: 70px;
+  }
 }
 
 /* --- Accès clavier --- */
@@ -854,6 +1164,7 @@ select:focus-visible,
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
+  z-index: 5;
   display: flex;
   gap: 0.4rem;
 }
@@ -966,32 +1277,35 @@ select:focus-visible,
   }
 }
 
-/* --- Chat --- */
+/* --- Chat (panneau ancré à droite, façon chat de jeu plutôt que bulle SAV) --- */
 
-.chat-widget {
+.chat-tab {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  /* En haut plutôt qu'au milieu de l'écran : évite de recouvrir un bouton de formulaire
+     de jeu (ex: bouton d'envoi de réponse) qui, lui, peut se retrouver n'importe où
+     verticalement selon le contenu de l'écran. */
+  top: 5rem;
+  right: 0;
   z-index: 9000;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.8rem 0.6rem 0.9rem;
+  border-radius: 999px 0 0 999px;
+  border-right: none;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.chat-toggle {
-  width: 3.2rem;
-  height: 3.2rem;
-  border-radius: 50%;
-  font-size: 1.4rem;
-  padding: 0;
-  position: relative;
+.chat-tab-icon {
+  font-size: 1.1rem;
+}
+
+.chat-dock-open .chat-tab {
+  display: none;
 }
 
 .chat-badge {
-  position: absolute;
-  top: -0.2rem;
-  right: -0.2rem;
   background: var(--error);
   color: #ffffff;
   font-size: 0.65rem;
@@ -1002,49 +1316,105 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.2rem;
+  padding: 0 0.3rem;
+}
+
+.chat-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 4, 14, 0.45);
+  z-index: 8998;
 }
 
 .chat-panel {
-  width: min(300px, 80vw);
-  max-height: 380px;
-  border-radius: 18px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 8999;
+  width: min(360px, 92vw);
+  border-radius: 20px 0 0 20px;
+  border-right: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .chat-header {
-  padding: 0.6rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
   font-weight: 700;
   font-family: 'Space Grotesk', sans-serif;
   color: var(--text);
   border-bottom: 1px solid var(--surface-border);
 }
 
+.chat-close {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  box-shadow: none;
+  background: var(--surface-soft);
+}
+
 .chat-messages {
   list-style: none;
   margin: 0;
-  padding: 0.6rem 0.9rem;
+  padding: 0.8rem 1rem;
   overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  font-size: 0.85rem;
+  gap: 0.7rem;
+  font-size: 0.88rem;
   color: var(--text);
-  min-height: 120px;
 }
 
-.chat-messages strong {
+.chat-line {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.chat-line-avatar {
+  flex-shrink: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  min-width: 1.7rem;
+  font-size: 0.85rem;
+}
+
+.chat-line-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.chat-line.is-self .chat-line-body {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(217, 70, 239, 0.12));
+}
+
+.chat-line-name {
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--accent);
-  margin-right: 0.3rem;
+}
+
+.chat-line-text {
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .chat-form {
   display: flex;
   gap: 0.4rem;
-  padding: 0.6rem;
+  padding: 0.7rem;
   border-top: 1px solid var(--surface-border);
 }
 
@@ -1057,6 +1427,13 @@ select:focus-visible,
 .chat-form button {
   padding: 0.5rem 0.8rem;
   box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .chat-panel {
+    width: 100vw;
+    border-radius: 0;
+  }
 }
 
 /* --- Barre de progression (quiz / devine l'image) --- */
@@ -1142,6 +1519,13 @@ select:focus-visible,
   padding: 0;
   border: 3px solid transparent;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.color-swatch.active {
+  border-color: var(--accent);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 12px var(--glow-1);
 }
 
 .color-swatch.eraser {
@@ -1194,4 +1578,633 @@ select:focus-visible,
     opacity: 0;
     transform: translateX(-50%) translateY(-10px) scale(0.95);
   }
+}
+
+/* ======================= V2 ======================= */
+
+/* --- Texte d'astuce discret sous un champ --- */
+
+.hint-text {
+  font-size: 0.75rem;
+  margin: 0.15rem 0 0;
+}
+
+/* --- Playlist manuelle (choix + ordre des mini-jeux) --- */
+
+.pill-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.pill-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.playlist-order {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.playlist-order li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.playlist-remove {
+  width: 1.4rem;
+  height: 1.4rem;
+  min-width: 1.4rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  box-shadow: none;
+  background: var(--error-glass);
+  color: var(--error);
+}
+
+/* --- Contenu perso --- */
+
+.custom-content-details {
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface-soft);
+}
+
+.custom-content-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.custom-content-details textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+
+/* --- Équipes --- */
+
+.team-dot-btn {
+  width: 1.1rem;
+  height: 1.1rem;
+  min-width: 1.1rem;
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 0 0 0 2px var(--surface-border);
+  margin-left: auto;
+}
+
+.team-dot {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.team-standings li {
+  font-weight: 700;
+}
+
+/* --- Élimination progressive (winCondition) --- */
+
+.leaderboard li.is-eliminated {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* --- Dashboard stats fin de soirée --- */
+
+.stats-dashboard {
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.stats-dashboard summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stats-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.6rem;
+}
+
+.stats-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 0.35rem 0.6rem;
+  text-align: center;
+  border-bottom: 1px solid var(--surface-border);
+  white-space: nowrap;
+}
+
+.stats-table td:first-child,
+.stats-table th:first-child {
+  text-align: left;
+  font-weight: 700;
+}
+
+/* --- Mode streamer : masque le code de room / QR / lien d'invitation --- */
+
+.lobby-toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.streamer-mode .room-code-value,
+.streamer-mode #room-qr,
+.streamer-mode #copy-btn {
+  filter: blur(10px);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* --- Mode écran de présentation (#1 V2) : grand écran partagé, pas un joueur --- */
+/* Inspiré des party games façon "Use Your Words" : blocs de couleur francs, typo XXL,
+   micro-animations bondissantes — pensé pour être regardé à distance sur un écran de salon. */
+
+.display-mode {
+  --display-glow: 0 0 40px rgba(34, 211, 238, 0.5);
+}
+
+.display-mode .party-game-wrap {
+  max-width: min(1400px, 97vw);
+}
+
+.display-mode .screen {
+  max-width: min(1100px, 96vw);
+}
+
+.display-mode h1 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  filter: drop-shadow(0 0 28px var(--glow-1));
+  animation: display-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.display-mode .guess-image,
+.display-mode #draw-canvas,
+.display-mode .guess-cover {
+  box-shadow: 0 0 0 4px var(--accent), var(--display-glow);
+}
+
+.display-mode .timer-bar {
+  height: 16px;
+}
+
+.display-mode .party-game-wrap .leaderboard-widget {
+  font-size: 1.15rem;
+}
+
+@keyframes display-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(-16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Personne n'interagit depuis l'écran de présentation : on garde le contenu visible (les
+   choix du quiz, l'image, le canvas...) pour que ça reste un vrai écran partagé, mais tout
+   ce qui ressemble à un contrôle de saisie est neutralisé et grisé — un bandeau fixe rappelle
+   de jouer depuis son téléphone plutôt que de cliquer ici. */
+.display-mode .party-game-wrap .guess-answer-form,
+.display-mode .party-game-wrap #guess-form,
+.display-mode .party-game-wrap .draw-tools,
+.display-mode .party-game-wrap #draw-guess-form,
+.display-mode .party-game-wrap .reaction-bar {
+  display: none;
+}
+
+.display-mode .quiz-choice,
+.display-mode .vote-card,
+.display-mode .word-pick {
+  pointer-events: none;
+}
+
+.display-badge {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--accent-text);
+  box-shadow: 0 8px 28px rgba(var(--shadow-c), 0.5);
+  animation: display-badge-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes display-badge-pulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.04); }
+}
+
+/* --- Imposteur --- */
+
+.impostor-word {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--accent);
+}
+
+.impostor-clues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.impostor-clues li {
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
+  background: var(--surface-soft);
+  font-size: 0.9rem;
+}
+
+.impostor-clues strong {
+  color: var(--accent);
+  margin-right: 0.3rem;
+}
+
+.impostor-vote-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.impostor-suspect h2 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* --- Petit Bac --- */
+
+.pbac-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.pbac-field {
+  gap: 0.3rem;
+}
+
+.pbac-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.pbac-category h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.pbac-category ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pbac-category li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 0.85rem;
+}
+
+.pbac-category li .points {
+  margin-left: auto;
+}
+
+.pbac-category li.pbac-invalid {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* --- Wordle --- */
+
+.wordle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.wordle-row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.wordle-cell {
+  width: 2.6rem;
+  height: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.3rem;
+  font-family: 'Space Grotesk', sans-serif;
+  border-radius: 8px;
+  text-transform: uppercase;
+  background: var(--surface-soft);
+  border: 2px solid var(--surface-border);
+  color: var(--text);
+}
+
+.wordle-cell.wordle-correct {
+  background: var(--success);
+  border-color: var(--success);
+  color: #04121a;
+}
+
+.wordle-cell.wordle-present {
+  background: #FFB020;
+  border-color: #FFB020;
+  color: #04121a;
+}
+
+.wordle-cell.wordle-absent {
+  opacity: 0.45;
+}
+
+/* --- Définition Mystère --- */
+
+.tournament-block {
+  margin-top: 0.8rem;
+}
+
+.tournament-block h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* --- Points bonus manuels (hôte, écran de résultats) --- */
+
+.bonus-btn {
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 999px;
+  box-shadow: none;
+  background: var(--surface-strong);
+}
+
+/* --- Récap de fin de soirée --- */
+
+.recap-details {
+  text-align: left;
+}
+
+.recap-round {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.recap-round summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.recap-entry {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--surface-border);
+  font-size: 0.85rem;
+}
+
+.recap-entry:first-of-type {
+  border-top: none;
+  padding-top: 0.3rem;
+}
+
+.recap-drawing {
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 8px;
+  background: #fff;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.define-def {
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+/* ======================= V3 ======================= */
+
+/* --- Générique d'intro (avant lancement de la soirée) --- */
+
+.intro-screen {
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.intro-title {
+  font-size: clamp(2rem, 6vw, 4rem);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: intro-title-pop 0.6s ease;
+}
+
+@keyframes intro-title-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --- Combo de réactions géantes --- */
+
+.reaction-combo {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  pointer-events: none;
+  animation: reaction-combo-pop 1.8s ease forwards;
+}
+
+.reaction-combo-emoji {
+  font-size: 5rem;
+  filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.4));
+}
+
+.reaction-combo-count {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+}
+
+@keyframes reaction-combo-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+/* --- QR code permanent (retardataires, mode présentateur) --- */
+
+.persistent-qr {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.5rem;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 8px 24px rgba(var(--shadow-c), 0.35);
+}
+
+.persistent-qr canvas {
+  width: 84px;
+  height: 84px;
+  display: block;
+}
+
+.persistent-qr-code {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+/* --- Contrôles "régie" (présentateur, en cours de jeu) --- */
+
+#regie-skip-btn {
+  margin-top: 0.6rem;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+/* --- Replay de dessin (récap de fin de soirée) --- */
+
+.recap-replay-btn {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.recap-replay-canvas {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.5rem;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* --- Statistiques : colonne temps de réponse moyen --- */
+
+.stats-table th[title],
+.stats-table td:last-child {
+  white-space: nowrap;
+}
+
+/* --- Profil joueur / achievements --- */
+
+.achievement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.achievement-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text);
+  border: 1px solid var(--surface-border);
 }
