@@ -1,0 +1,13 @@
+{
+  "name": "Romet Le Jeu",
+  "short_name": "Romet",
+  "description": "Mini-jeux en multi entre potes, auto-hébergés par un hôte.",
+  "start_url": "/Romet/",
+  "scope": "/Romet/",
+  "display": "standalone",
+  "background_color": "#0B0E1A",
+  "theme_color": "#0B0E1A",
+  "icons": [
+    { "src": "/Romet/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
